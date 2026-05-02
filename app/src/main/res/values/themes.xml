@@ -1,0 +1,11 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Auralign_Spaces" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+    </style>
+
+    <style name="Theme.Auralign_Spaces" parent="Base.Theme.Auralign_Spaces" />
+    
+    <!-- Match the name used in AndroidManifest.xml -->
+    <style name="Theme.AuralignSpaces" parent="Theme.Auralign_Spaces" />
+</resources>
