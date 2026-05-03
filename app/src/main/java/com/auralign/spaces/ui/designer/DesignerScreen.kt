@@ -2,6 +2,7 @@ package com.auralign.spaces.ui.designer
 
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.graphics.RectF
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
@@ -58,8 +59,10 @@ import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
 import io.github.sceneview.math.Size
 import io.github.sceneview.node.ModelNode
+import io.github.sceneview.node.Node
 import io.github.sceneview.node.PlaneNode
 import io.github.sceneview.texture.ImageTexture
+import io.github.sceneview.utils.worldToScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -71,6 +74,8 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.abs
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +116,9 @@ fun DesignerScreen(
     var floorPlane by remember { mutableStateOf<PlaneNode?>(null) }
     var wallAnchor by remember { mutableStateOf<AnchorNode?>(null) }
     var wallPlane by remember { mutableStateOf<PlaneNode?>(null) }
+    var draggingInstanceId by remember { mutableStateOf<String?>(null) }
+    var draggingMoved by remember { mutableStateOf(false) }
+    var dragStartedOnSelected by remember { mutableStateOf(false) }
 
     fun modelUnits(placed: com.auralign.spaces.data.model.PlacedObject): Float {
         val footprint = maxOf(placed.item.widthM, placed.item.depthM, 0.5).toFloat()
@@ -132,15 +140,132 @@ fun DesignerScreen(
                 viewModel.selectItem(instanceId)
                 true
             } else {
-                false
+                event.action == MotionEvent.ACTION_DOWN
             }
         }
+        modelNode.isHittable = true
         modelNode.isTouchable = true
         modelNode.onTouch = { event, _ -> selectOnTap(event) }
         modelNode.nodes.forEach { child ->
+            child.isHittable = true
             child.isTouchable = true
             child.onTouch = { event, _ -> selectOnTap(event) }
         }
+    }
+
+    fun Node?.findSelectableInstanceId(): String? {
+        var current = this
+        while (current != null) {
+            modelNodes.entries.firstOrNull { (_, modelNode) -> modelNode === current }?.let {
+                return it.key
+            }
+            current = current.parent
+        }
+        return null
+    }
+
+    fun ARSceneView.findTappedModelInstanceId(
+        event: MotionEvent,
+        keepSelectedIfTouched: Boolean = false
+    ): String? {
+        val collisionInstanceIds = collisionSystem
+            .hitTest(event)
+            .mapNotNull { result ->
+                result.node.findSelectableInstanceId()
+            }
+            .distinct()
+
+        val screenCandidates = modelNodes
+            .mapNotNull { (instanceId, modelNode) ->
+                val center = modelNode.boundingBox.center
+                val halfExtent = modelNode.boundingBox.halfExtent
+                val projectedCorners = listOf(
+                    Position(center[0] - halfExtent[0], center[1] - halfExtent[1], center[2] - halfExtent[2]),
+                    Position(center[0] - halfExtent[0], center[1] - halfExtent[1], center[2] + halfExtent[2]),
+                    Position(center[0] - halfExtent[0], center[1] + halfExtent[1], center[2] - halfExtent[2]),
+                    Position(center[0] - halfExtent[0], center[1] + halfExtent[1], center[2] + halfExtent[2]),
+                    Position(center[0] + halfExtent[0], center[1] - halfExtent[1], center[2] - halfExtent[2]),
+                    Position(center[0] + halfExtent[0], center[1] - halfExtent[1], center[2] + halfExtent[2]),
+                    Position(center[0] + halfExtent[0], center[1] + halfExtent[1], center[2] - halfExtent[2]),
+                    Position(center[0] + halfExtent[0], center[1] + halfExtent[1], center[2] + halfExtent[2]),
+                ).map { localCorner ->
+                    view.worldToScreen(modelNode.getWorldPosition(localCorner))
+                }
+
+                val bounds = RectF(
+                    projectedCorners.minOf { it.x },
+                    projectedCorners.minOf { it.y },
+                    projectedCorners.maxOf { it.x },
+                    projectedCorners.maxOf { it.y }
+                )
+                val minimumTouchSizePx = 96.0f
+                val touchPaddingPx = 32.0f
+                val inflateX = max(touchPaddingPx, (minimumTouchSizePx - bounds.width()) / 2.0f)
+                val inflateY = max(touchPaddingPx, (minimumTouchSizePx - bounds.height()) / 2.0f)
+                val touchBounds = RectF(bounds).apply { inset(-inflateX, -inflateY) }
+
+                if (!touchBounds.contains(event.x, event.y)) {
+                    null
+                } else {
+                    val halfWidth = max(bounds.width() / 2.0f, minimumTouchSizePx / 2.0f)
+                    val halfHeight = max(bounds.height() / 2.0f, minimumTouchSizePx / 2.0f)
+                    val normalizedX = abs(event.x - bounds.centerX()) / halfWidth
+                    val normalizedY = abs(event.y - bounds.centerY()) / halfHeight
+                    val hitBonus = if (instanceId in collisionInstanceIds) -0.15f else 0.0f
+                    instanceId to ((normalizedX * normalizedX) + (normalizedY * normalizedY) + hitBonus)
+                }
+            }
+
+        val candidates = (screenCandidates.ifEmpty { collisionInstanceIds.map { it to 0.0f } })
+            .groupBy { it.first }
+            .map { (instanceId, scores) -> instanceId to scores.minOf { it.second } }
+            .sortedBy { it.second }
+
+        if (candidates.isEmpty()) return null
+
+        val selectedId = viewModel.state.value.selectedInstanceId
+        val selectedIndex = candidates.indexOfFirst { it.first == selectedId }
+        if (keepSelectedIfTouched && selectedIndex >= 0) {
+            return selectedId
+        }
+        return if (selectedIndex >= 0 && candidates.size > 1) {
+            candidates[(selectedIndex + 1) % candidates.size].first
+        } else {
+            candidates.first().first
+        }
+    }
+
+    fun ARSceneView.movePlacedModelTo(event: MotionEvent, instanceId: String): Boolean {
+        val anchorNode = anchorNodes[instanceId] ?: return false
+        val hit = hitTestAR(
+            xPx = event.x,
+            yPx = event.y,
+            planeTypes = setOf(Plane.Type.HORIZONTAL_UPWARD_FACING),
+            instantPlacementPoint = false
+        ) ?: return false
+
+        return runCatching {
+            val previousAnchor = anchorNode.anchor
+            val nextAnchor = hit.createAnchor()
+            val pose = nextAnchor.pose
+            val t = pose.translation
+            val r = pose.rotationQuaternion
+
+            anchorNode.anchor = nextAnchor
+            previousAnchor.detach()
+
+            viewModel.placeItemFromPose(
+                instanceId = instanceId,
+                posX = t[0],
+                posY = t[1],
+                posZ = t[2],
+                rotQx = r[0],
+                rotQy = r[1],
+                rotQz = r[2],
+                rotQw = r[3],
+            )
+            true
+        }.getOrDefault(false)
     }
 
     val httpClient = remember {
@@ -236,10 +361,17 @@ fun DesignerScreen(
     // Configure AR session for plane detection
     LaunchedEffect(arSceneView) {
         val sv = arSceneView ?: return@LaunchedEffect
+        sv.lightEstimator?.apply {
+            environmentalHdrMainLightIntensity = false
+            environmentalHdrMainLightDirection = true
+            environmentalHdrSphericalHarmonics = true
+            environmentalHdrReflections = true
+        }
         runCatching {
             sv.configureSession { _, config ->
                 config.planeFindingMode = com.google.ar.core.Config.PlaneFindingMode.HORIZONTAL_AND_VERTICAL
                 config.instantPlacementMode = com.google.ar.core.Config.InstantPlacementMode.DISABLED
+                config.lightEstimationMode = com.google.ar.core.Config.LightEstimationMode.ENVIRONMENTAL_HDR
             }
         }
     }
@@ -340,6 +472,8 @@ fun DesignerScreen(
             uvScale = UvScale(state.floorMaterial.uvScale),
             materialInstance = mat
         ).also {
+            it.isHittable = false
+            it.isTouchable = false
             floorPlane = it
             anchorNode.addChildNode(it)
         }
@@ -371,6 +505,8 @@ fun DesignerScreen(
             uvScale = UvScale(1.0f),
             materialInstance = mat
         ).also {
+            it.isHittable = false
+            it.isTouchable = false
             wallPlane = it
             anchorNode.addChildNode(it)
         }
@@ -402,13 +538,6 @@ fun DesignerScreen(
                     val anchorNode = AnchorNode(engine = sv.engine, anchor = anchor)
 
                     val instance = sv.modelLoader.createModelInstance(glbFile)
-                    // Set material properties to keep original color
-                    instance.materialInstances.forEach { mat ->
-                        runCatching {
-                            mat.setParameter("metallicFactor", 0.0f)
-                            mat.setParameter("roughnessFactor", 1.0f)
-                        }
-                    }
                     val modelNode = ModelNode(
                         modelInstance = instance,
                         scaleToUnits = modelUnits(placed),
@@ -498,7 +627,49 @@ fun DesignerScreen(
                             ARSceneView(ctx).also { sv ->
                                 arSceneView = sv
                                 sv.onTouchEvent = { e, _ ->
-                                    if (e.action == MotionEvent.ACTION_UP) {
+                                    if (e.action == MotionEvent.ACTION_DOWN && !viewModel.state.value.anyPendingPlacement) {
+                                        val previouslySelectedId = viewModel.state.value.selectedInstanceId
+                                        val selectedId = sv.findTappedModelInstanceId(e, keepSelectedIfTouched = true)
+                                        if (selectedId != null) {
+                                            draggingInstanceId = selectedId
+                                            draggingMoved = false
+                                            dragStartedOnSelected = selectedId == previouslySelectedId
+                                            viewModel.selectItem(selectedId)
+                                            true
+                                        } else {
+                                            draggingInstanceId = null
+                                            draggingMoved = false
+                                            dragStartedOnSelected = false
+                                            false
+                                        }
+                                    } else if (e.action == MotionEvent.ACTION_MOVE && draggingInstanceId != null) {
+                                        draggingMoved = sv.movePlacedModelTo(e, draggingInstanceId!!) || draggingMoved
+                                        true
+                                    } else if (e.action == MotionEvent.ACTION_UP && draggingInstanceId != null) {
+                                        val movedId = draggingInstanceId!!
+                                        val shouldMove = draggingMoved
+                                        val shouldCycleSelection = dragStartedOnSelected
+                                        draggingInstanceId = null
+                                        draggingMoved = false
+                                        dragStartedOnSelected = false
+                                        if (shouldMove) {
+                                            sv.movePlacedModelTo(e, movedId)
+                                            viewModel.selectItem(movedId)
+                                        } else {
+                                            val tappedId = if (shouldCycleSelection) {
+                                                sv.findTappedModelInstanceId(e) ?: movedId
+                                            } else {
+                                                movedId
+                                            }
+                                            viewModel.selectItem(tappedId)
+                                        }
+                                        true
+                                    } else if (e.action == MotionEvent.ACTION_CANCEL) {
+                                        draggingInstanceId = null
+                                        draggingMoved = false
+                                        dragStartedOnSelected = false
+                                        false
+                                    } else if (e.action == MotionEvent.ACTION_UP) {
                                         val s = viewModel.state.value
                                         when {
                                             s.pendingPlacementId != null -> {
@@ -611,7 +782,15 @@ fun DesignerScreen(
                                                 }
                                                 true
                                             }
-                                            else -> false
+                                            else -> {
+                                                val selectedId = sv.findTappedModelInstanceId(e)
+                                                if (selectedId != null) {
+                                                    viewModel.selectItem(selectedId)
+                                                    true
+                                                } else {
+                                                    false
+                                                }
+                                            }
                                         }
                                     } else false
                                 }
@@ -695,9 +874,19 @@ fun DesignerScreen(
                     viewModel = viewModel
                 )
             } else {
-                CategoryTabs(selected = state.activeCategory, onSelect = { viewModel.selectCategory(it) })
+                val availableCategories = FurnitureCategory.entries.filter { category ->
+                    state.visibleCatalog.any { it.category == category }
+                }
+                val shelfCategory = state.activeCategory
+                    .takeIf { it in availableCategories }
+                    ?: availableCategories.firstOrNull()
+                CategoryTabs(
+                    selected = shelfCategory ?: state.activeCategory,
+                    categories = availableCategories,
+                    onSelect = { viewModel.selectCategory(it) }
+                )
                 BudgetProgressBar(percent = state.budgetPercent, remaining = state.budgetRemaining, isOver = state.isOverBudget)
-                FurnitureShelf(items = state.visibleCatalog.filter { it.category == state.activeCategory }, budgetRemaining = state.budgetRemaining, onItemClick = { viewModel.addItem(it) })
+                FurnitureShelf(items = state.visibleCatalog.filter { it.category == shelfCategory }, budgetRemaining = state.budgetRemaining, onItemClick = { viewModel.addItem(it) })
             }
         }
 
@@ -706,7 +895,7 @@ fun DesignerScreen(
             visible = state.selectedInstanceId != null && !state.showCustomizer,
             enter = slideInVertically(initialOffsetY = { it }),
             exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 220.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 280.dp)
         ) {
             state.selectedItem?.let { selected ->
                 ItemControls(
@@ -857,13 +1046,17 @@ fun DesignerTopBar(
 }
 
 @Composable
-fun CategoryTabs(selected: FurnitureCategory, onSelect: (FurnitureCategory) -> Unit) {
+fun CategoryTabs(
+    selected: FurnitureCategory,
+    categories: List<FurnitureCategory> = FurnitureCategory.entries,
+    onSelect: (FurnitureCategory) -> Unit
+) {
     LazyRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(FurnitureCategory.entries) { category ->
+        items(categories) { category ->
             val isSelected = category == selected
             Box(
                 modifier = Modifier
@@ -931,7 +1124,7 @@ fun FurnitureShelf(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(item.name, color = AuralignColors.TextPrimary, fontSize = 9.sp, maxLines = 2, fontWeight = FontWeight.Medium)
-                Text("₹${(item.price / 1000).toInt()}k", color = AuralignColors.Emerald, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text("INR ${item.price.toInt()}", color = AuralignColors.Emerald, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

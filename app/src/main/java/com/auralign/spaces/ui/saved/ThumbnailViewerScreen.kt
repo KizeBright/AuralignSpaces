@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,7 +32,7 @@ fun ThumbnailViewerScreen(
     }
 
     Scaffold(
-        containerColor = cs.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(design?.name ?: "Design", fontWeight = FontWeight.Bold, color = cs.onBackground, fontSize = 18.sp) },
@@ -40,15 +41,14 @@ fun ThumbnailViewerScreen(
                         Icon(Icons.Rounded.ArrowBack, null, tint = cs.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(cs.background),
+                .padding(padding),
             contentAlignment = Alignment.Center
         ) {
             when {

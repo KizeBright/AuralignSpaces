@@ -7,6 +7,7 @@ import com.auralign.spaces.data.model.*
 import com.auralign.spaces.data.repository.AIRepository
 import com.auralign.spaces.data.repository.DesignRepository
 import com.auralign.spaces.domain.model.FurnitureCategory
+import com.auralign.spaces.domain.model.isVisibleInRoom
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.UUID
 import javax.inject.Inject
 
 data class DesignerState(
@@ -56,28 +57,6 @@ data class DesignerState(
     val isOverBudget: Boolean get() = totalSpent > roomConfig.budget
     val selectedItem: PlacedObject? get() = placedItems.find { it.instanceId == selectedInstanceId }
     val anyPendingPlacement: Boolean get() = pendingPlacementId != null || pendingFloorPlacement || pendingWallPlacement
-}
-
-private fun FurnitureItem.isVisibleInRoom(roomType: String): Boolean {
-    val room = roomType.lowercase(Locale.ROOT)
-    val searchable = listOf(id, name, modelId, description)
-        .joinToString(" ")
-        .lowercase(Locale.ROOT)
-
-    val isChair = searchable.contains("chair") || searchable.contains("armchair")
-    val isTable = searchable.contains("table")
-    val isBed = searchable.contains("bed")
-    val isBathTub = searchable.contains("bathtub") ||
-        searchable.contains("bath tub") ||
-        searchable.contains("tub")
-
-    return when {
-        isChair -> true
-        isTable -> room.contains("living") || room.contains("office") || room.contains("bedroom")
-        isBed -> room.contains("bedroom")
-        isBathTub -> room.contains("bathroom")
-        else -> true
-    }
 }
 
 @HiltViewModel

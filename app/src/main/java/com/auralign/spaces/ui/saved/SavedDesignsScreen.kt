@@ -34,11 +34,11 @@ fun SavedDesignsScreen(
     val cs = MaterialTheme.colorScheme
 
     Scaffold(
-        containerColor =cs.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("My Rooms", fontWeight = FontWeight.Bold, color = cs.onBackground, fontSize = 20.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
         floatingActionButton = {

@@ -60,6 +60,10 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun onGoogleSignInFailed(message: String) {
+        _authState.value = AuthState.Error(message)
+    }
+
     fun register(name: String, email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading

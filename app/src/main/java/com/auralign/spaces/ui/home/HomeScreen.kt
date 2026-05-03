@@ -3,8 +3,14 @@ package com.auralign.spaces.ui.home
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +48,7 @@ import java.util.Calendar
 @Composable
 fun HomeScreen(
     userName: String = "Designer",
+    userPhotoUrl: String? = null,
     onNavigateToDesigner: (com.auralign.spaces.data.model.RoomConfig) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -81,7 +88,7 @@ fun HomeScreen(
     }
 
     Scaffold(
-        containerColor = cs.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -105,15 +112,24 @@ fun HomeScreen(
                             .border(2.dp, cs.surface, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            initial,
-                            color = Color.White,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 18.sp
-                        )
+                        if (!userPhotoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = userPhotoUrl,
+                                contentDescription = "Profile photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text(
+                                initial,
+                                color = Color.White,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp
+                            )
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
@@ -330,7 +346,11 @@ private fun RoomPreviewCard(w: Double, l: Double, h: Double) {
     val onSurfaceVariant    = cs.onSurfaceVariant
 
     var started by remember { mutableStateOf(false) }
-    val scaleAnim by animateFloatAsState(if (started) 1f else 0.8f, spring(Spring.DampingRatioMediumBouncy))
+    val scaleAnim by animateFloatAsState(
+        targetValue = if (started) 1f else 0.8f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy),
+        label = "roomPreviewScale"
+    )
     LaunchedEffect(Unit) { started = true }
 
     Card(
@@ -467,7 +487,11 @@ private fun DimensionsSection(
             Icon(if (isOpen) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = cs.onSurfaceVariant)
         }
 
-        AnimatedVisibility(visible = isOpen, enter = expandVertically() + fadeIn(), exit  = shrinkVertically() + fadeOut()) {
+        AnimatedVisibility(
+            visible = isOpen,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
             Column(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(cs.surfaceVariant).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)

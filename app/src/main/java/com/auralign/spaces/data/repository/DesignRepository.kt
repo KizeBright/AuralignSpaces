@@ -115,7 +115,7 @@ class DesignRepository @Inject constructor(
             runCatching {
                 val source = doc.toObject(FurnitureItem::class.java)
                 fun stringField(vararg names: String): String =
-                    names.firstNotNullOfOrNull { doc.getString(it)?.takeIf(String::isNotBlank) }.orEmpty()
+                    names.firstNotNullOfOrNull { doc.getString(it)?.trim()?.takeIf(String::isNotBlank) }.orEmpty()
 
                 fun doubleField(vararg names: String): Double? =
                     names.firstNotNullOfOrNull { name ->
@@ -152,8 +152,8 @@ class DesignRepository @Inject constructor(
                     modelId = stringField("modelId", "model Id").ifBlank { source?.modelId.orEmpty() },
                     thumbnailUrl = stringField("thumbnailUrl", "thumbnail Url").ifBlank { source?.thumbnailUrl.orEmpty() },
                     description = stringField("description").ifBlank { source?.description.orEmpty() },
-                    widthM = doubleField("widthM", "width M") ?: source?.widthM ?: 0.0,
-                    depthM = doubleField("depthM", "depth M") ?: source?.depthM ?: 0.0,
+                    widthM = doubleField("widthM", "width M", "width") ?: source?.widthM ?: 0.0,
+                    depthM = doubleField("depthM", "depth M", "depth") ?: source?.depthM ?: source?.widthM ?: 0.0,
                     colorOptions = doc.get("colorOptions") as? List<String> ?: source?.colorOptions ?: emptyList(),
                     rating = doubleField("rating")?.toFloat() ?: source?.rating ?: 4.5f,
                     modelUrl = stringField("modelUrl", "model Url").ifBlank { source?.modelUrl.orEmpty() }

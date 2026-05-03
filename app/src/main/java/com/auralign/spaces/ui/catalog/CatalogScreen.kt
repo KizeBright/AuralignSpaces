@@ -39,7 +39,7 @@ fun CatalogScreen(
     val cs = MaterialTheme.colorScheme
 
     Scaffold(
-        containerColor = cs.background,
+        containerColor = Color.Transparent,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Catalog", fontWeight = FontWeight.Bold, color = cs.onBackground) },
@@ -48,7 +48,7 @@ fun CatalogScreen(
                         Icon(Icons.Rounded.FilterList, null, tint = cs.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = cs.background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->

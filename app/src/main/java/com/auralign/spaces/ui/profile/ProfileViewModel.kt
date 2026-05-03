@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.stateIn
 data class ProfileState(
     val name: String = "",
     val email: String = "",
+    val photoUrl: String = "",
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
@@ -55,10 +57,18 @@ class ProfileViewModel @Inject constructor(
                     if (doc.exists()) {
                         val name = doc.getString("name") ?: user.displayName ?: ""
                         val email = doc.getString("email") ?: user.email ?: ""
-                        _state.update { it.copy(name = name, email = email, isLoading = false) }
+                        val photoUrl = doc.getString("photoUrl") ?: user.photoUrl?.toString().orEmpty()
+                        _state.update { it.copy(name = name, email = email, photoUrl = photoUrl, isLoading = false) }
                     } else {
                         // Edge case where document might not be created natively
-                        _state.update { it.copy(name = user.displayName ?: "", email = user.email ?: "", isLoading = false) }
+                        _state.update {
+                            it.copy(
+                                name = user.displayName ?: "",
+                                email = user.email ?: "",
+                                photoUrl = user.photoUrl?.toString().orEmpty(),
+                                isLoading = false
+                            )
+                        }
                     }
                 } catch (e: Exception) {
                     _state.update { it.copy(error = e.message, isLoading = false) }
@@ -86,7 +96,9 @@ class ProfileViewModel @Inject constructor(
         _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
-                firestore.collection("users").document(user.uid).update("name", _state.value.name).await()
+                firestore.collection("users").document(user.uid)
+                    .set(mapOf("name" to _state.value.name.trim()), SetOptions.merge())
+                    .await()
                 _state.update { it.copy(isEditing = false, isLoading = false) }
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message, isLoading = false) }

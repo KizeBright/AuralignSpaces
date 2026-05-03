@@ -36,12 +36,24 @@ class AuthRepository @Inject constructor(
     private suspend fun fetchOrCreateUser(firebaseUser: FirebaseUser): User {
         val doc = firestore.collection("users").document(firebaseUser.uid).get().await()
         return if (doc.exists()) {
-            doc.toObject(User::class.java)!!
+            val savedUser = doc.toObject(User::class.java) ?: User(id = firebaseUser.uid)
+            val googlePhotoUrl = firebaseUser.photoUrl?.toString().orEmpty()
+            val savedName = savedUser.name.takeUnless { it.equals("Designer", ignoreCase = true) }.orEmpty()
+            val mergedUser = savedUser.copy(
+                name = savedName.ifBlank { firebaseUser.displayName ?: "" },
+                email = savedUser.email.ifBlank { firebaseUser.email ?: "" },
+                photoUrl = savedUser.photoUrl.ifBlank { googlePhotoUrl }
+            )
+            if (mergedUser != savedUser) {
+                firestore.collection("users").document(firebaseUser.uid).set(mergedUser).await()
+            }
+            mergedUser
         } else {
             val user = User(
                 id = firebaseUser.uid,
                 name = firebaseUser.displayName ?: "",
-                email = firebaseUser.email ?: ""
+                email = firebaseUser.email ?: "",
+                photoUrl = firebaseUser.photoUrl?.toString().orEmpty()
             )
             firestore.collection("users").document(user.id).set(user).await()
             user

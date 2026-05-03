@@ -1,8 +1,11 @@
 package com.auralign.spaces.ui.auth
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -24,11 +30,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.auralign.spaces.ui.theme.BrandAccent
-import com.auralign.spaces.ui.theme.BrandPrimary
-import com.auralign.spaces.ui.theme.BrandSecondary
-import com.auralign.spaces.ui.theme.BrandTertiary
+import com.auralign.spaces.R
 import com.auralign.spaces.ui.theme.SplashGradient
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun AuthScreen(
@@ -37,6 +43,33 @@ fun AuthScreen(
 ) {
     val authState by viewModel.authState.collectAsState()
     val isSignIn by viewModel.isSignInTab.collectAsState()
+    val context = LocalContext.current
+    val googleSignInClient = remember(context) {
+        GoogleSignIn.getClient(
+            context,
+            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(context.getString(R.string.default_web_client_id))
+                .requestEmail()
+                .requestProfile()
+                .build()
+        )
+    }
+    val googleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken.isNullOrBlank()) {
+                viewModel.onGoogleSignInFailed("Google account did not return an ID token")
+            } else {
+                viewModel.signInWithGoogle(idToken)
+            }
+        } catch (e: ApiException) {
+            viewModel.onGoogleSignInFailed("Google Sign-In failed: ${e.statusCode}")
+        }
+    }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Success) onAuthSuccess()
@@ -44,7 +77,7 @@ fun AuthScreen(
 
     val cs = MaterialTheme.colorScheme
 
-    Box(modifier = Modifier.fillMaxSize().background(cs.background)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
         // ── Top brand strip ──────────────────────────────────────
         Box(
@@ -62,7 +95,12 @@ fun AuthScreen(
                         .background(Color.White.copy(0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.ViewInAr, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                    Image(
+                        painter = painterResource(R.drawable.app_logo),
+                        contentDescription = "Auralign Logo",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(56.dp)
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("Auralign", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Black)
@@ -115,7 +153,8 @@ fun AuthScreen(
 
             // Google SSO
             OutlinedButton(
-                onClick = { /* Google auth */ },
+                onClick = { googleLauncher.launch(googleSignInClient.signInIntent) },
+                enabled = authState !is AuthState.Loading,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.onSurface),

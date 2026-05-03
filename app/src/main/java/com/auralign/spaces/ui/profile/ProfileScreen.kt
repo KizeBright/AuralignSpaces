@@ -17,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.auralign.spaces.ui.theme.SplashGradient
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,11 +36,11 @@ fun ProfileScreen(
     val cs     = MaterialTheme.colorScheme
 
     Scaffold(
-        containerColor = cs.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Profile", fontWeight = FontWeight.Bold, color = cs.onBackground) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
@@ -65,12 +67,21 @@ fun ProfileScreen(
                         .border(4.dp, cs.surface, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = state.name.trim().take(1).uppercase().ifEmpty { "?" },
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 44.sp
-                    )
+                    if (state.photoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = state.photoUrl,
+                            contentDescription = "Profile photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Text(
+                            text = state.name.trim().take(1).uppercase().ifEmpty { "?" },
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 44.sp
+                        )
+                    }
                 }
                 
                 // Edit / Camera button

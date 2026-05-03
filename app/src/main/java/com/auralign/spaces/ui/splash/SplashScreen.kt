@@ -4,95 +4,104 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ViewInAr
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.auralign.spaces.ui.theme.SplashGradient
+import com.auralign.spaces.R
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun SplashScreen(onSplashFinished: () -> Unit) {
-    val alpha  = remember { Animatable(0f) }
-    val scale  = remember { Animatable(0.6f) }
+    val isDarkTheme = isSystemInDarkTheme()
+    val splashBackground = if (isDarkTheme) Color(0xFF1B0711) else Color(0xFFFFF6F8)
+    val splashImageTint = Color(0xFF6E1A37).copy(alpha = if (isDarkTheme) 0.48f else 0.34f)
+    val alpha = remember { Animatable(0f) }
+    val scale = remember { Animatable(0.6f) }
+    val titleOffsetX = remember { Animatable(-34f) }
+    val taglineOffsetX = remember { Animatable(34f) }
 
     LaunchedEffect(Unit) {
-        // Logo spring-in
-        scale.animateTo(1f, animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
-        alpha.animateTo(1f, animationSpec = tween(600))
-        delay(1400)
-        alpha.animateTo(0f, animationSpec = tween(400))
+        coroutineScope {
+            launch { scale.animateTo(1f, animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow)) }
+            launch { alpha.animateTo(1f, animationSpec = tween(700)) }
+            launch { titleOffsetX.animateTo(0f, animationSpec = tween(750)) }
+            launch { taglineOffsetX.animateTo(0f, animationSpec = tween(durationMillis = 850, delayMillis = 120)) }
+        }
+        delay(1200)
+        alpha.animateTo(0f, animationSpec = tween(350))
         onSplashFinished()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SplashGradient),
+            .background(splashBackground),
         contentAlignment = Alignment.Center
     ) {
+        Image(
+            painter = painterResource(R.drawable.splash_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(splashImageTint)
+        )
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .alpha(alpha.value)
                 .scale(scale.value)
         ) {
-            // Logo circle
-            Box(
-                modifier = Modifier
-                    .size(110.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                // TODO: replace with your actual logo: Image(painterResource(R.drawable.logo), ...)
-                Icon(
-                    imageVector = Icons.Rounded.ViewInAr,
-                    contentDescription = "Auralign Logo",
-                    tint = Color.White,
-                    modifier = Modifier.size(64.dp)
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                text = "Auralign",
-                color = Color.White,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 1.sp
+            Image(
+                painter = painterResource(R.drawable.splash_logo),
+                contentDescription = "Auralign Splash Logo",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(96.dp)
             )
-            Spacer(Modifier.height(4.dp))
+
+            Spacer(Modifier.height(20.dp))
+
             Text(
-                text = "SPACES",
-                color = Color.White.copy(alpha = 0.75f),
-                fontSize = 13.sp,
+                text = "Auralign Spaces",
+                color = if (isDarkTheme) Color(0xFFFFD6E2) else Color(0xFF6E1A37),
+                fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 6.sp
+                fontSize = 42.sp,
+                letterSpacing = 0.sp,
+                modifier = Modifier.offset(x = titleOffsetX.value.dp)
             )
-            Spacer(Modifier.height(48.dp))
+
+            Spacer(Modifier.height(12.dp))
+
             Text(
-                text = "Design your world in AR",
-                color = Color.White.copy(alpha = 0.55f),
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center
+                text = "Design, Visualize, Place, Perfect",
+                color = if (isDarkTheme) Color(0xFFF9AFC5) else Color(0xFFAE2448),
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp,
+                letterSpacing = 0.6.sp,
+                modifier = Modifier.offset(x = taglineOffsetX.value.dp)
             )
         }
     }
