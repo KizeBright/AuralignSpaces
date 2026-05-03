@@ -43,7 +43,12 @@ data class DesignerState(
     val customizerTab: Int = 0,
     val saveSuccess: Boolean = false
 ) {
-    val totalSpent: Double get() = placedItems.sumOf { it.item.price } +
+    val visibleCatalog: List<FurnitureItem> get() = catalog.filter { item ->
+        item.isVisibleInRoom(roomConfig.type)
+    }
+    val totalSpent: Double get() = placedItems
+        .filter { it.isPlaced && it.instanceId !in listOf("floor", "wall") }
+        .sumOf { it.item.price } +
         (if (floorPlaced) floorMaterial.price else 0.0) +
         (if (wallPlaced) wallPaint.price else 0.0)
     val budgetRemaining: Double get() = (roomConfig.budget - totalSpent).coerceAtLeast(0.0)
@@ -51,6 +56,28 @@ data class DesignerState(
     val isOverBudget: Boolean get() = totalSpent > roomConfig.budget
     val selectedItem: PlacedObject? get() = placedItems.find { it.instanceId == selectedInstanceId }
     val anyPendingPlacement: Boolean get() = pendingPlacementId != null || pendingFloorPlacement || pendingWallPlacement
+}
+
+private fun FurnitureItem.isVisibleInRoom(roomType: String): Boolean {
+    val room = roomType.lowercase(Locale.ROOT)
+    val searchable = listOf(id, name, modelId, description)
+        .joinToString(" ")
+        .lowercase(Locale.ROOT)
+
+    val isChair = searchable.contains("chair") || searchable.contains("armchair")
+    val isTable = searchable.contains("table")
+    val isBed = searchable.contains("bed")
+    val isBathTub = searchable.contains("bathtub") ||
+        searchable.contains("bath tub") ||
+        searchable.contains("tub")
+
+    return when {
+        isChair -> true
+        isTable -> room.contains("living") || room.contains("office") || room.contains("bedroom")
+        isBed -> room.contains("bedroom")
+        isBathTub -> room.contains("bathroom")
+        else -> true
+    }
 }
 
 @HiltViewModel
@@ -198,6 +225,7 @@ class DesignerViewModel @Inject constructor(
     }
 
     fun addItem(item: FurnitureItem) {
+        if (_state.value.anyPendingPlacement) return
         if (_state.value.budgetRemaining < item.price) return
         when (item.category) {
             FurnitureCategory.FLOOR -> {

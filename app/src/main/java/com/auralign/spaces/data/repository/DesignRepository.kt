@@ -214,6 +214,8 @@ class DesignRepository @Inject constructor(
             FurnitureItem("6", "Areca Palm", "Greenery", FurnitureCategory.PLANTS, 3500.0, "🪴", "plant_areca", "", "Low-maintenance indoor palm for a fresh look.", 0.6, 0.6, listOf("#059669")),
             FurnitureItem("7", "Abstract Canvas", "ArtAlign", FurnitureCategory.WALL_ART, 15000.0, "🖼️", "wall_art_1", "", "Large-scale abstract oil painting.", 1.5, 0.05, listOf("#7C3AED")),
             FurnitureItem("8", "Leather Armchair", "LuxurySit", FurnitureCategory.FURNITURE, 32000.0, "🪑", "armchair_leather", "", "Premium Italian leather armchair.", 0.9, 0.8, listOf("#3C2415", "#6B3A2A"), 4.5f, "https://raw.githubusercontent.com/mithra-n/auralign-models/main/chair-glb/source/chair%20GLB.glb"),
+            FurnitureItem("9", "Modern Queen Bed", "AuraHome", FurnitureCategory.FURNITURE, 38000.0, "Bed", "modern_queen_bed", "", "Upholstered queen-size bed with a low modern frame.", 1.6, 2.1, listOf("#F5F5F0", "#3C2415")),
+            FurnitureItem("10", "Freestanding Bathtub", "AquaNest", FurnitureCategory.FURNITURE, 52000.0, "Tub", "freestanding_bathtub", "", "Modern freestanding bathtub with smooth oval edges.", 0.8, 1.7, listOf("#FFFFFF")),
             // Floor tiles
             FurnitureItem("floor_oak", "Oak Plank Floor", "FloorCo", FurnitureCategory.FLOOR, 5000.0, "🏠", "floor_oak", "", "Solid oak plank flooring.", 3.0, 3.0, emptyList(), 0f, ""),
             FurnitureItem("floor_stone", "Stone Grid Floor", "FloorCo", FurnitureCategory.FLOOR, 6000.0, "🏠", "floor_stone", "", "Stone grid tile flooring.", 3.0, 3.0, emptyList(), 0f, ""),

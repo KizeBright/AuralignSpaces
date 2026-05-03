@@ -126,6 +126,23 @@ fun DesignerScreen(
         modelNode.position = Position(y = -modelNode.size.y)
     }
 
+    fun makeModelSelectable(modelNode: ModelNode, instanceId: String) {
+        val selectOnTap: (MotionEvent) -> Boolean = { event ->
+            if (event.action == MotionEvent.ACTION_UP) {
+                viewModel.selectItem(instanceId)
+                true
+            } else {
+                false
+            }
+        }
+        modelNode.isTouchable = true
+        modelNode.onTouch = { event, _ -> selectOnTap(event) }
+        modelNode.nodes.forEach { child ->
+            child.isTouchable = true
+            child.onTouch = { event, _ -> selectOnTap(event) }
+        }
+    }
+
     val httpClient = remember {
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -398,6 +415,7 @@ fun DesignerScreen(
                         centerOrigin = Position(y = -1.0f)
                     )
                     applyPlacedModelTransform(modelNode, placed)
+                    makeModelSelectable(modelNode, placed.instanceId)
                     anchorNode.addChildNode(modelNode)
 
                     sv.addChildNode(anchorNode)
@@ -679,7 +697,7 @@ fun DesignerScreen(
             } else {
                 CategoryTabs(selected = state.activeCategory, onSelect = { viewModel.selectCategory(it) })
                 BudgetProgressBar(percent = state.budgetPercent, remaining = state.budgetRemaining, isOver = state.isOverBudget)
-                FurnitureShelf(items = state.catalog.filter { it.category == state.activeCategory }, budgetRemaining = state.budgetRemaining, onItemClick = { viewModel.addItem(it) })
+                FurnitureShelf(items = state.visibleCatalog.filter { it.category == state.activeCategory }, budgetRemaining = state.budgetRemaining, onItemClick = { viewModel.addItem(it) })
             }
         }
 
