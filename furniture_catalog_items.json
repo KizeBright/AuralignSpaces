@@ -1,0 +1,79 @@
+[
+  {
+    "brand": "GreenHome",
+    "category": "PLANTS",
+    "emoji": "🪴",
+    "id": "13",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/free_pothos_potted_plant_-_money_plant.glb",
+    "name": "Indoor Plant",
+    "price": 2500,
+    "rating": 4.5,
+    "width": 0.45
+  },
+  {
+    "brand": "StoragePlus",
+    "category": "STORAGE",
+    "emoji": "🚪",
+    "id": "14",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/old_wardrobe.glb",
+    "name": "Modern Wardrobe",
+    "price": 12000,
+    "rating": 4.5,
+    "width": 1.8
+  },
+  {
+    "brand": "AuraHome",
+    "category": "FURNITURE",
+    "emoji": "🛋️",
+    "id": "15",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/sofa.glb",
+    "name": "Modern Sofa",
+    "price": 9000,
+    "rating": 4.5,
+    "width": 2.2
+  },
+  {
+    "brand": "WorkSpace",
+    "category": "FURNITURE",
+    "emoji": "🖥️",
+    "id": "16",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/table_with_lamp.glb ",
+    "name": "Office Table",
+    "price": 11000,
+    "rating": 4.5,
+    "width": 1.4
+  },
+  {
+    "brand": "DineWell",
+    "category": "FURNITURE",
+    "emoji": "🍽️",
+    "id": "17",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/sleek_modern_dining_table_set.glb",
+    "name": "Dining Table",
+    "price": 15000,
+    "rating": 4.5,
+    "width": 1.8
+  },
+  {
+    "brand": "AquaNest",
+    "category": "FURNITURE",
+    "emoji": "🚿",
+    "id": "18",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/shower.glb",
+    "name": "Modern Shower",
+    "price": 9000,
+    "rating": 4.5,
+    "width": 0.9
+  },
+  {
+    "brand": "KitchenPro",
+    "category": "FURNITURE",
+    "emoji": "🎛️",
+    "id": "19",
+    "modelUrl": "https://github.com/mithra-n/auralign-models/raw/main/small_kitchen_with_oven.glb",
+    "name": "Kitchen Table with Oven",
+    "price": 16000,
+    "rating": 4.5,
+    "width": 1.6
+  }
+]

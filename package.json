@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "seed:furniture": "node scripts/seedFurnitureCatalog.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

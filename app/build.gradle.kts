@@ -16,11 +16,21 @@ val localProperties = Properties().apply {
     }
 }
 
-val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY") ?: ""
-val groqApiKey: String = localProperties.getProperty("GROQ_API_KEY") ?: ""
-val githubToken: String = localProperties.getProperty("GITHUB_TOKEN")
-    ?: localProperties.getProperty("github.token")
-    ?: ""
+fun Properties.secretProperty(vararg names: String): String {
+    return names.firstNotNullOfOrNull { getProperty(it) }
+        ?.trim()
+        ?.removeSurrounding("\"")
+        ?.removeSurrounding("'")
+        ?: ""
+}
+
+fun String.asBuildConfigString(): String {
+    return replace("\\", "\\\\").replace("\"", "\\\"")
+}
+
+val geminiApiKey: String = localProperties.secretProperty("GEMINI_API_KEY")
+val groqApiKey: String = localProperties.secretProperty("GROQ_API_KEY")
+val githubToken: String = localProperties.secretProperty("GITHUB_TOKEN", "github.token")
 
 android {
     namespace = "com.auralign.spaces"
@@ -38,9 +48,9 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
-        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
-        buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${geminiApiKey.asBuildConfigString()}\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"${groqApiKey.asBuildConfigString()}\"")
+        buildConfigField("String", "GITHUB_TOKEN", "\"${githubToken.asBuildConfigString()}\"")
     }
 
     buildTypes {

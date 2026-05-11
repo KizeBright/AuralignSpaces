@@ -4,6 +4,8 @@
 /local.properties
 google-services.json
 app/google-services.json
+serviceAccountKey.json
+firebase-service-account.json
 *.jks
 *.keystore
 *.p12
@@ -21,3 +23,6 @@ app/google-services.json
 .externalNativeBuild
 .cxx
 local.properties
+node_modules/
+.npm-cache/
+tools/

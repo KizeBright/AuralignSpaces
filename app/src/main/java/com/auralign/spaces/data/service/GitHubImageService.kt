@@ -39,7 +39,8 @@ class GitHubImageService @Inject constructor(
     data class GitHubCommitRequest(
         val message: String,
         val content: String,           // Base64 encoded image
-        val branch: String = BRANCH
+        val branch: String = BRANCH,
+        val sha: String? = null
     )
     
     data class GitHubErrorResponse(
@@ -47,6 +48,50 @@ class GitHubImageService @Inject constructor(
         val errors: List<Map<String, Any>>? = null
     )
     
+    private fun getContentUrl(filePath: String): String {
+        return "https://api.github.com/repos/$repoOwner/$repoName/contents/$filePath"
+    }
+
+    private fun getContentUrlWithRef(filePath: String): String {
+        return "https://api.github.com/repos/$repoOwner/$repoName/contents/$filePath?ref=$BRANCH"
+    }
+
+    private fun getRawUrl(filePath: String): String {
+        return "https://raw.githubusercontent.com/$repoOwner/$repoName/$BRANCH/$filePath"
+    }
+
+    private fun fetchExistingFileSha(filePath: String): String? {
+        val url = getContentUrlWithRef(filePath)
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $githubToken")
+            .addHeader("X-GitHub-Api-Version", "2022-11-28")
+            .addHeader("Accept", "application/vnd.github.v3+json")
+            .get()
+            .build()
+
+        okHttpClient.newCall(request).execute().use { response ->
+            return when {
+                response.isSuccessful -> {
+                    response.body?.string()?.let { body ->
+                        runCatching {
+                            gson.fromJson(body, Map::class.java)["sha"] as? String
+                        }.getOrNull().also {
+                            if (it != null) {
+                                Log.d("GitHubImageService", "Found existing thumbnail sha for $filePath: $it")
+                            }
+                        }
+                    }
+                }
+                response.code == 404 -> null
+                else -> {
+                    Log.e("GitHubImageService", "Failed to fetch existing file sha for $filePath: ${response.code}")
+                    null
+                }
+            }
+        }
+    }
+
     /**
      * Upload a design thumbnail to GitHub CDN
      * 
@@ -71,19 +116,26 @@ class GitHubImageService @Inject constructor(
                 
                 val fileName = "$designId.jpg"
                 val filePath = "thumbnails/$fileName"
-                val cdnUrl = "https://raw.githubusercontent.com/$repoOwner/$repoName/$BRANCH/$filePath"
+                val cdnUrl = getRawUrl(filePath)
+                val existingSha = fetchExistingFileSha(filePath)
                 
                 // Build GitHub API request payload
+                val commitMessage = if (existingSha != null) {
+                    "Update thumbnail for design $designId"
+                } else {
+                    "Add thumbnail for design $designId"
+                }
                 val request = GitHubCommitRequest(
-                    message = "Add thumbnail for design $designId",
-                    content = base64Image
+                    message = commitMessage,
+                    content = base64Image,
+                    sha = existingSha
                 )
                 
                 val jsonPayload = gson.toJson(request)
-                Log.d("GitHubImageService", "Sending to GitHub API: $filePath")
+                Log.d("GitHubImageService", "Sending to GitHub API: $filePath (sha=${existingSha ?: "new"})")
                 
                 // Create HTTP request
-                val url = "https://api.github.com/repos/$repoOwner/$repoName/contents/$filePath"
+                val url = getContentUrl(filePath)
                 val httpRequest = Request.Builder()
                     .url(url)
                     .addHeader("Authorization", "Bearer $githubToken")
